@@ -2,11 +2,6 @@
 
 面向 CAAC 无人机理论考试的练习系统，提供章节刷题、错题整理、收藏/不熟标记、学习数据面板、账号进度同步和 AI 讲解。
 
-当前线上地址：
-
-- 主站：https://caac.gengau.com/
-- 后台：https://caac.gengau.com/admin
-
 ## 技术栈
 
 - 前端：React 19、Vite、TypeScript、lucide-react
@@ -38,6 +33,24 @@ question_bank_site/
   Dockerfile                     # Node 构建前端 + Python 运行后端
   docker-compose.yml             # 8010:80
 ```
+
+## 界面预览
+
+| 登录页 | 学习总览 |
+| --- | --- |
+| ![登录页](docs/screenshots/login-page.png) | ![学习总览](docs/screenshots/dashboard-page.png) |
+
+| 练习页 | 错题本 |
+| --- | --- |
+| ![练习页](docs/screenshots/practice-page.png) | ![错题本](docs/screenshots/wrongbook-page.png) |
+
+| 模拟考试 | 考试报告 |
+| --- | --- |
+| ![模拟考试](docs/screenshots/exam-page.png) | ![考试报告](docs/screenshots/exam-report-pass.png) |
+
+| 后台登录 | 后台首页 |
+| --- | --- |
+| ![后台登录](docs/screenshots/admin-login.png) | ![后台首页](docs/screenshots/admin-dashboard.png) |
 
 ## 核心功能
 
@@ -251,18 +264,6 @@ docker compose up -d --build
 8010:80
 ```
 
-线上由狗云 Nginx 反代到源站：
-
-```text
-http://168.138.177.29:8010/
-```
-
-域名：
-
-```text
-https://caac.gengau.com
-```
-
 升级前备份示例：
 
 ```text
@@ -360,4 +361,3 @@ P4：部署、安全和性能
 - 后台独立 session
 - 错误日志和基础监控
 - 进度数据结构化存储
-
