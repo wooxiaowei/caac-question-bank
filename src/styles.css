@@ -2711,16 +2711,24 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
   border-radius: 18px;
   padding: 28px 32px;
   background:
-    radial-gradient(circle at 86% 42%, rgba(82, 183, 136, .26), transparent 31%),
-    radial-gradient(circle at 62% 0%, rgba(116, 198, 157, .18), transparent 34%),
-    linear-gradient(135deg, #ffffff 0%, #f4fbf6 46%, #eaf7ef 100%);
+    linear-gradient(90deg, #ffffff 0%, #ffffff 42%, #f9fdf9 58%, #eef8ef 100%);
+}
+.dashboard-hero-v2::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 44%;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 72% 46%, rgba(82, 184, 90, .24), rgba(82, 184, 90, .10) 38%, rgba(238, 248, 239, .04) 66%, transparent 82%),
+    linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(238, 248, 239, .44) 58%, rgba(225, 246, 228, .62) 100%);
+  pointer-events: none;
 }
 .dashboard-hero-v2::after {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,.96) 0%, rgba(255,255,255,.82) 43%, rgba(238,248,239,.18) 72%, rgba(238,248,239,.38) 100%);
+    linear-gradient(90deg, rgba(255,255,255,.96) 0%, rgba(255,255,255,.72) 39%, rgba(255,255,255,.08) 56%, rgba(255,255,255,0) 68%);
   pointer-events: none;
 }
 .dashboard-hero-copy {
@@ -2813,7 +2821,7 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
   max-height: 230px;
   object-fit: contain;
   object-position: center right;
-  transform: translateX(16px) scale(1.18);
+  transform: translate(-92px, -14px) scale(1.77);
   filter: drop-shadow(0 28px 34px rgba(16, 32, 51, .18));
   pointer-events: none;
   user-select: none;
@@ -5281,7 +5289,7 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
   .dashboard-hero-drone {
     width: 330px;
     max-height: 190px;
-    transform: translateX(30px) scale(1.05);
+    transform: translate(-54px, -10px) scale(1.58);
   }
   .wrongbook-page {
     grid-template-columns: 280px minmax(0, 1fr);
@@ -5548,7 +5556,7 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
   .dashboard-hero-drone {
     width: 360px;
     max-height: 180px;
-    transform: translateX(18px) scale(1.02);
+    transform: translate(-58px, -10px) scale(1.53);
   }
 
   .dashboard-hero-copy h1 {
