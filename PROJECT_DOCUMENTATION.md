@@ -483,7 +483,7 @@ curl http://127.0.0.1:8010/question-bank.json
 ```env
 ADMIN_PASSWORD=change-me
 OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=your-api-key
 AI_MODEL=gpt-4.1-mini
 SESSION_DAYS=30
 DATA_DIR=/app/data
