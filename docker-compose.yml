@@ -1,0 +1,12 @@
+services:
+  uav-question-bank:
+    build: .
+    image: uav-question-bank:latest
+    container_name: uav-question-bank
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8010:80"
+    volumes:
+      - ./data:/app/data

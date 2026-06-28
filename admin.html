@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>进取号后台管理系统</title>
+  <link rel="icon" type="image/png" href="./assets/enterprise-icon.png" />
+  <link rel="stylesheet" href="./styles.css?v=quick-icons-clean-20260628" />
+</head>
+<body class="admin-body admin-v2">
+  <div class="admin-app">
+    <aside class="admin-sidebar-v2" id="adminSidebar">
+      <div class="admin-sidebar-brand">
+        <img src="./assets/enterprise-icon.png" alt="" />
+        <div>
+          <strong>进取号</strong>
+          <span>CAAC 理论题库</span>
+        </div>
+      </div>
+
+      <nav class="admin-nav-v2" aria-label="后台导航">
+        <button class="active" data-view="home"><span>⌂</span>首页</button>
+        <p>内容管理</p>
+        <button data-view="bank"><span>▣</span>题库管理</button>
+        <button data-view="chapters"><span>▦</span>章节管理</button>
+        <button data-view="tags"><span>◇</span>标签管理</button>
+        <button data-view="wrong"><span>◴</span>错题管理</button>
+        <button data-view="notice"><span>✈</span>公告管理</button>
+        <button data-view="materials"><span>▤</span>资料管理</button>
+        <p>用户与权限</p>
+        <button data-view="users"><span>♙</span>用户管理</button>
+        <button data-view="roles"><span>♧</span>角色管理</button>
+        <button data-view="permissions"><span>◎</span>权限管理</button>
+        <p>考试管理</p>
+        <button data-view="exam"><span>▣</span>模拟考试</button>
+        <button data-view="correction"><span>☷</span>考试记录</button>
+        <button data-view="scores"><span>⌁</span>成绩管理</button>
+        <p>系统管理</p>
+        <button data-view="config"><span>⚙</span>配置中心</button>
+        <button data-view="ai"><span>AI</span>AI 配置</button>
+        <button data-view="monitor"><span>▧</span>系统监控</button>
+      </nav>
+
+      <button class="admin-collapse-btn" id="collapseSidebarBtn">|‹　收起菜单</button>
+    </aside>
+
+    <section class="admin-login-panel" id="loginCard">
+      <div class="admin-login-stage">
+        <div class="admin-login-card">
+          <div class="admin-sidebar-brand admin-login-brand">
+            <img src="./assets/enterprise-icon.png" alt="" />
+            <div>
+              <strong>进取号</strong>
+              <span>CAAC 理论题库后台</span>
+            </div>
+          </div>
+          <div class="admin-login-heading">
+            <span>Admin Console</span>
+            <h1>管理员登录</h1>
+            <p>输入后台密码后管理题库、AI 接口、公告内容和用户学习数据。</p>
+          </div>
+          <label>
+            <span>后台密码</span>
+            <input id="adminPassword" type="password" placeholder="请输入后台密码" autocomplete="current-password" />
+          </label>
+          <button id="loginBtn">登录后台</button>
+          <p class="admin-message" id="loginMessage"></p>
+        </div>
+        <aside class="admin-login-aside" aria-label="后台能力概览">
+          <div>
+            <span class="admin-login-kicker">CAAC Learning Ops</span>
+            <h2>统一管理题库、用户与 AI 解析能力</h2>
+            <p>面向进取号学习平台的运营控制台，支持题库维护、学习数据查看、AI 配置和系统状态巡检。</p>
+          </div>
+          <div class="admin-login-feature-grid">
+            <article><b>题库</b><strong>1205+</strong><span>章节题目集中维护</span></article>
+            <article><b>用户</b><strong>同步</strong><span>学习进度持续保存</span></article>
+            <article><b>AI</b><strong>解析</strong><span>讲解与考试报告配置</span></article>
+            <article><b>安全</b><strong>权限</strong><span>后台入口独立保护</span></article>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <div class="admin-shell-v2 hidden" id="adminPanel">
+      <header class="admin-topbar-v2">
+        <div class="admin-top-title">
+          <span>航空理论考试学习平台</span>
+          <strong id="adminTopTitle">后台管理系统</strong>
+        </div>
+        <label class="admin-search-v2">
+          <span>⌕</span>
+          <input id="adminSearch" placeholder="搜索功能 / 用户 / 内容" />
+        </label>
+        <button class="admin-icon-button" id="adminBellBtn" aria-label="系统通知">♧<em>12</em></button>
+        <button class="admin-profile-v2" id="logoutBtn">
+          <span>◉</span>
+          <strong>wooxiaowei</strong>
+          <small>管理员</small>
+        </button>
+      </header>
+
+      <main class="admin-content-v2">
+        <section class="admin-view active" data-view-panel="home">
+          <div class="admin-page-head">
+            <div>
+              <h1>首页概览</h1>
+              <p id="adminWelcome">欢迎回来，wooxiaowei！今天是 2026年06月28日 星期日</p>
+            </div>
+            <div class="admin-head-actions">
+              <button class="ghost" id="clearCacheBtn">清除缓存</button>
+              <button class="ghost" id="backupDataBtn">数据备份</button>
+              <button id="newActionBtn">＋ 新建</button>
+            </div>
+          </div>
+
+          <div class="admin-metric-grid-v2" id="adminMetricGrid"></div>
+
+          <div class="admin-dashboard-grid">
+            <article class="admin-panel-v2 admin-chart-panel">
+              <div class="admin-panel-head">
+                <h2>学习数据趋势</h2>
+                <select id="trendRange"><option>近 7 天</option><option>近 30 天</option></select>
+              </div>
+              <div class="admin-line-chart" id="learningTrendChart"></div>
+            </article>
+
+            <article class="admin-panel-v2">
+              <div class="admin-panel-head"><h2>用户活跃度分布</h2></div>
+              <div class="admin-donut-wrap">
+                <div class="admin-donut" id="userDonut"><strong>0</strong><span>总用户</span></div>
+                <div class="admin-donut-legend" id="userDonutLegend"></div>
+              </div>
+            </article>
+
+            <aside class="admin-side-stack">
+              <article class="admin-panel-v2">
+                <div class="admin-panel-head"><h2>快捷入口</h2></div>
+                <div class="admin-quick-grid">
+                  <button data-view-shortcut="bank" data-icon="bank">题库管理</button>
+                  <button data-view-shortcut="users" data-icon="users">用户管理</button>
+                  <button data-view-shortcut="exam" data-icon="exam">模拟考试</button>
+                  <button data-view-shortcut="correction" data-icon="status">考试记录</button>
+                  <button data-view-shortcut="wrong" data-icon="wrong">错题管理</button>
+                  <button data-view-shortcut="notice" data-icon="notice">公告管理</button>
+                  <button data-view-shortcut="config" data-icon="config">系统设置</button>
+                  <button data-view-shortcut="monitor" data-icon="analytics">数据统计</button>
+                </div>
+              </article>
+              <article class="admin-panel-v2">
+                <div class="admin-panel-head"><h2>系统信息</h2></div>
+                <div class="admin-system-list" id="systemInfoList"></div>
+              </article>
+              <article class="admin-panel-v2">
+                <div class="admin-panel-head"><h2>操作日志</h2><button class="text-btn" data-view-shortcut="monitor">查看更多</button></div>
+                <div class="admin-log-list" id="operationLogList"></div>
+              </article>
+            </aside>
+
+            <article class="admin-panel-v2">
+              <div class="admin-panel-head"><h2>最新模拟考试</h2><button class="text-btn" data-view-shortcut="exam">查看更多</button></div>
+              <div class="admin-table-wrap">
+                <table>
+                  <thead><tr><th>考试名称</th><th>考试人数</th><th>平均分</th><th>正确率</th><th>操作</th></tr></thead>
+                  <tbody id="recentExamTable"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="admin-panel-v2">
+              <div class="admin-panel-head"><h2>系统通知</h2><button class="text-btn" data-view-shortcut="notice">查看更多</button></div>
+              <div class="admin-notice-list" id="systemNoticeList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="admin-view" data-view-panel="bank">
+          <div class="admin-page-head">
+            <div><h1>题库管理</h1><p>查看当前题量、章节分布，并上传新的 JSON 题库。</p></div>
+            <button class="ghost" id="refreshBankBtn">刷新统计</button>
+          </div>
+          <div class="admin-panel-v2">
+            <div class="admin-stats admin-stats-v2">
+              <div><b id="bankTitle">-</b><span>题库</span></div>
+              <div><b id="bankTotal">0</b><span>题量</span></div>
+              <div><b id="bankChapters">0</b><span>章节</span></div>
+            </div>
+            <label class="field">
+              <span>上传题库 JSON</span>
+              <input id="bankFile" type="file" accept=".json,application/json" />
+            </label>
+            <div class="admin-actions">
+              <button id="uploadBankBtn">上传并替换题库</button>
+              <button class="ghost" data-view-shortcut="chapters">查看章节</button>
+            </div>
+            <div class="admin-chapters" id="bankChapterList"></div>
+            <p class="admin-message" id="bankMessage"></p>
+          </div>
+        </section>
+
+        <section class="admin-view" data-view-panel="chapters">
+          <div class="admin-page-head"><div><h1>章节管理</h1><p>按章节查看题量分布和题库覆盖情况。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-chapter-table" id="chapterManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="tags">
+          <div class="admin-page-head"><div><h1>标签管理</h1><p>根据章节、错题、收藏、不熟等维度管理学习标签。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-tag-grid" id="tagManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="wrong">
+          <div class="admin-page-head"><div><h1>错题管理</h1><p>汇总用户错题、薄弱章节和高频错题。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-wrong-grid" id="wrongManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="notice">
+          <div class="admin-page-head"><div><h1>公告管理</h1><p>管理网站通告、系统通知和维护提醒。</p></div><button id="addNoticeBtn">新增公告</button></div>
+          <div class="admin-panel-v2"><div class="admin-notice-editor" id="noticeManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="materials">
+          <div class="admin-page-head"><div><h1>资料管理</h1><p>管理题库来源文件、备份和学习资料入口。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-material-list" id="materialManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="users">
+          <div class="admin-page-head">
+            <div><h1>用户管理</h1><p>查看用户做题情况，重置密码、清空进度或删除账号。</p></div>
+            <button class="ghost" id="refreshUsersBtn">刷新用户</button>
+          </div>
+          <div class="admin-panel-v2">
+            <div class="admin-users" id="userList"></div>
+            <p class="admin-message" id="userMessage"></p>
+          </div>
+        </section>
+
+        <section class="admin-view" data-view-panel="roles">
+          <div class="admin-page-head"><div><h1>角色管理</h1><p>维护管理员、运营和只读角色。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-role-grid" id="roleManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="permissions">
+          <div class="admin-page-head"><div><h1>权限管理</h1><p>查看后台模块权限矩阵。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-permission-grid" id="permissionManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="exam">
+          <div class="admin-page-head"><div><h1>模拟考试</h1><p>查看考试次数、分数和参与情况。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-table-wrap"><table><thead><tr><th>考试名称</th><th>考试人数</th><th>平均分</th><th>正确率</th><th>操作</th></tr></thead><tbody id="examManagerTable"></tbody></table></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="correction">
+          <div class="admin-page-head"><div><h1>考试记录</h1><p>查看用户最近同步和考试记录摘要。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-log-list" id="correctionRecordList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="scores">
+          <div class="admin-page-head"><div><h1>成绩管理</h1><p>统计平均分、正确率和用户学习表现。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-score-grid" id="scoreManagerList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="config">
+          <div class="admin-page-head"><div><h1>配置中心</h1><p>系统运行状态、缓存、备份和版本信息。</p></div></div>
+          <div class="admin-panel-v2"><div class="admin-system-list" id="configCenterList"></div></div>
+        </section>
+
+        <section class="admin-view" data-view-panel="ai">
+          <div class="admin-page-head"><div><h1>AI 配置</h1><p>支持 OpenAI 兼容接口，用于题目讲解、考试报告和刷题辅助。</p></div></div>
+          <div class="admin-panel-v2 admin-form-panel">
+            <label class="field"><span>Base URL</span><input id="baseUrl" placeholder="https://api.openai.com/v1 或兼容接口" /></label>
+            <label class="field"><span>API Key</span><input id="apiKey" type="password" placeholder="留空表示不修改；保存后不会回显" /></label>
+            <label class="field"><span>模型</span><input id="model" placeholder="gpt-4.1-mini / gemini-3-flash 等" /></label>
+            <div class="admin-actions"><button id="saveConfigBtn">保存配置</button><button id="testAiBtn" class="ghost">测试 AI</button></div>
+            <p class="admin-message" id="configMessage"></p>
+          </div>
+        </section>
+
+        <section class="admin-view" data-view-panel="monitor">
+          <div class="admin-page-head"><div><h1>系统监控</h1><p>查看系统状态、资源占用和最近操作。</p></div></div>
+          <div class="admin-dashboard-grid compact">
+            <article class="admin-panel-v2"><div class="admin-system-list" id="monitorSystemList"></div></article>
+            <article class="admin-panel-v2"><div class="admin-log-list" id="monitorLogList"></div></article>
+          </div>
+        </section>
+      </main>
+      <footer class="admin-footer-v2">© 2026 进取号航空理论考试学习平台 · 后台管理系统</footer>
+    </div>
+  </div>
+  <script src="./admin.js?v=scrollfix-20260628"></script>
+</body>
+</html>
