@@ -222,7 +222,7 @@ async function showAdmin() {
   document.body.classList.add("admin-authenticated");
   $("loginCard").classList.add("hidden");
   $("adminPanel").classList.remove("hidden");
-  $("adminWelcome").textContent = `欢迎回来，wooxiaowei！今天是 ${formatDateTitle()}`;
+  $("adminWelcome").textContent = `欢迎回来，管理员！今天是 ${formatDateTitle()}`;
   await Promise.all([loadConfig(), loadBank(), loadUsers()]);
   renderAll();
 }
@@ -425,7 +425,7 @@ function renderSystemInfo() {
 
 function renderLogs() {
   const rows = [
-    ["管理员 wooxiaowei 登录系统", "06-28 00:10"],
+    ["管理员登录系统", "06-28 00:10"],
     ["更新了题库数据", "06-28 00:05"],
     ["创建了模拟考试", "06-27 23:58"],
     ["导出了用户数据", "06-27 21:45"],

@@ -3253,7 +3253,7 @@ function DashboardPage({ bank, stats, progress, onPractice, onExam }: { bank: Qu
               { rank: 1, name: "李飞飞", score: Math.max(points + 420, 1280) },
               { rank: 2, name: "王浩然", score: Math.max(points + 210, 1070) },
               { rank: 3, name: "张子墨", score: Math.max(points + 120, 980) },
-              { rank: 4, name: "我（wooxiaowei）", score: Math.max(points, 860), me: true }
+              { rank: 4, name: "我", score: Math.max(points, 860), me: true }
             ].map((item) => (
               <div className={item.me ? "ranking-row me" : "ranking-row"} key={item.rank}>
                 <b>{item.rank}</b>
