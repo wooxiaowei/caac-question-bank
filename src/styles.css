@@ -6245,5 +6245,421 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
   .stat-card b { font-size: 22px; }
 }
 
+/* Mobile experience pass: phones should scroll naturally instead of inheriting the
+   desktop fixed-viewport dashboard shell. */
+@media (max-width: 980px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body {
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+  }
+
+  .app-shell {
+    display: block;
+    width: 100%;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+  }
+
+  .mobile-topbar {
+    min-height: 58px;
+    padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+    box-shadow: 0 10px 26px rgba(17, 24, 39, .06);
+  }
+
+  .mobile-topbar .icon-btn,
+  .mobile-topbar button {
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .workspace-shell,
+  .workspace-shell.dashboard-shell,
+  .workspace-shell.wrongbook-shell,
+  .workspace-shell.exam-shell,
+  .workspace-shell.exam-report-shell {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-height: calc(100dvh - 58px);
+    height: auto;
+    overflow: visible;
+    padding: 12px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .main-area,
+  .practice-layout,
+  .dashboard-page,
+  .dashboard-v2,
+  .wrongbook-page,
+  .wrongbook-main,
+  .wrongbook-left,
+  .wrongbook-right,
+  .exam-page,
+  .exam-full-layout,
+  .exam-left-rail,
+  .exam-main-column,
+  .exam-answer-panel,
+  .exam-report-page {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .exam-full-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .exam-running-hero,
+  .exam-left-rail,
+  .exam-main-column,
+  .exam-answer-panel {
+    grid-column: auto;
+    grid-row: auto;
+    width: 100%;
+  }
+
+  .exam-left-rail,
+  .exam-main-column,
+  .exam-answer-panel {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    width: min(88vw, 372px);
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: calc(14px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  .dashboard-left-rail,
+  .dashboard-center,
+  .dashboard-right-rail,
+  .wrongbook-left,
+  .wrongbook-main,
+  .wrongbook-right,
+  .exam-main-column {
+    padding-right: 0;
+  }
+
+  .record-table {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-shell,
+  .workspace-shell.dashboard-shell,
+  .workspace-shell.wrongbook-shell,
+  .workspace-shell.exam-shell,
+  .workspace-shell.exam-report-shell {
+    padding: 10px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+
+  .practice-layout,
+  .dashboard-v2,
+  .wrongbook-page,
+  .exam-page {
+    gap: 10px;
+  }
+
+  .practice-metrics {
+    display: flex;
+    grid-template-columns: none;
+    gap: 8px;
+    margin: 0 -2px 10px;
+    padding: 0 2px 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .practice-metrics::-webkit-scrollbar {
+    display: none;
+  }
+
+  .metric-card,
+  .metric-card.wide {
+    flex: 0 0 148px;
+    min-height: 70px;
+    grid-column: auto;
+    scroll-snap-align: start;
+    padding: 11px 12px;
+  }
+
+  .metric-card.wide {
+    flex-basis: 206px;
+  }
+
+  .metric-card strong {
+    font-size: 20px;
+    line-height: 1.05;
+  }
+
+  .metric-card span,
+  .metric-card small {
+    white-space: nowrap;
+  }
+
+  .question-card {
+    min-height: 0;
+    overflow: visible;
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 10px 28px rgba(17, 24, 39, .06);
+  }
+
+  .question-card::before,
+  .question-card::after {
+    display: none;
+  }
+
+  .question-topline,
+  .question-actions-inline {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .question-topline::-webkit-scrollbar,
+  .question-actions-inline::-webkit-scrollbar {
+    display: none;
+  }
+
+  .question-topline span,
+  .chip,
+  .history-chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .question-card h2 {
+    margin-top: 12px;
+    font-size: 21px;
+    line-height: 1.48;
+  }
+
+  .options {
+    gap: 9px;
+  }
+
+  .option-btn {
+    grid-template-columns: 38px minmax(0, 1fr);
+    align-items: center;
+    min-height: 66px;
+    padding: 10px 11px;
+    border-radius: 14px;
+  }
+
+  .option-btn b {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .option-btn span {
+    line-height: 1.45;
+  }
+
+  .feedback-panel,
+  .ai-panel {
+    padding: 14px;
+    border-radius: 14px;
+    line-height: 1.62;
+  }
+
+  .question-nav-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 12;
+    margin: 14px -16px -16px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgba(255,255,255,.94);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 -12px 28px rgba(17, 24, 39, .06);
+  }
+
+  .question-nav-btn {
+    min-height: 48px;
+    border-radius: 14px;
+  }
+
+  .bottom-actions {
+    z-index: 14;
+    background: rgba(255,255,255,.94);
+    backdrop-filter: blur(16px);
+  }
+
+  .dashboard-card-modern,
+  .dashboard-v2 .dash-card,
+  .wrongbook-card,
+  .wrongbook-hero,
+  .wrongbook-question-card,
+  .exam-side-card,
+  .exam-answer-panel,
+  .exam-running-hero,
+  .exam-question-panel,
+  .exam-report-header {
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .dashboard-hero-v2,
+  .wrongbook-hero,
+  .exam-running-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .dashboard-hero-copy h1,
+  .wrongbook-hero h1,
+  .exam-running-hero h1 {
+    font-size: clamp(23px, 7vw, 30px);
+    line-height: 1.18;
+  }
+
+  .overview-grid,
+  .wrongbook-hero-metrics,
+  .exam-overview-grid,
+  .exam-mini-stats,
+  .exam-report-pass-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .exam-control-grid,
+  .exam-target-row,
+  .exam-form-grid,
+  .exam-result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .exam-statusbar {
+    position: sticky;
+    top: 68px;
+    z-index: 18;
+    grid-template-columns: 1fr;
+  }
+
+  .exam-action-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 12;
+    margin: 12px -14px -14px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgba(255,255,255,.94);
+    backdrop-filter: blur(16px);
+  }
+
+  .exam-action-row button {
+    min-height: 48px;
+  }
+
+  .exam-answer-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .exam-answer-grid button {
+    min-height: 42px;
+    border-radius: 12px;
+  }
+
+  .wrongbook-actions-panel button,
+  .chapter-pills button,
+  .exam-start-inline {
+    min-height: 48px;
+  }
+
+  .login-page {
+    min-height: 100dvh;
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .login-hero {
+    width: 100%;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-topbar {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    gap: 8px;
+  }
+
+  .workspace-shell,
+  .workspace-shell.dashboard-shell,
+  .workspace-shell.wrongbook-shell,
+  .workspace-shell.exam-shell,
+  .workspace-shell.exam-report-shell {
+    padding-inline: 8px;
+  }
+
+  .question-card {
+    padding: 14px;
+  }
+
+  .question-nav-row {
+    margin-inline: -14px;
+    margin-bottom: -14px;
+  }
+
+  .metric-card,
+  .metric-card.wide {
+    flex-basis: 142px;
+  }
+
+  .metric-card.wide {
+    flex-basis: 194px;
+  }
+
+  .option-btn {
+    grid-template-columns: 36px minmax(0, 1fr);
+    min-height: 64px;
+    padding: 9px 10px;
+  }
+
+  .overview-grid,
+  .wrongbook-hero-metrics,
+  .exam-overview-grid,
+  .exam-mini-stats,
+  .exam-report-pass-summary {
+    gap: 8px;
+  }
+}
+
 
 
