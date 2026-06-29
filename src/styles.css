@@ -1148,6 +1148,10 @@ label span {
 }
 
 .mobile-topbar { display: none; }
+.mobile-topbar-main,
+.mobile-route-nav {
+  display: contents;
+}
 .drawer-backdrop { display: none; }
 .empty-card {
   display: grid;
@@ -5643,13 +5647,52 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
     top: 0;
     z-index: 30;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-columns: 1fr;
     gap: 10px;
     border-bottom: 1px solid var(--line);
     background: rgba(247,252,255,.94);
     backdrop-filter: blur(18px);
     padding: 10px 12px;
+  }
+  .mobile-topbar-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+  .mobile-route-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .mobile-route-nav button {
+    min-width: 0;
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid rgba(229, 231, 235, .95);
+    border-radius: 999px;
+    color: var(--muted);
+    background: rgba(255,255,255,.82);
+    box-shadow: none;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .mobile-route-nav button.active {
+    color: var(--primary-dark);
+    border-color: rgba(82, 183, 136, .42);
+    background: linear-gradient(135deg, #e9f8ed, #f5fbf6);
+  }
+  .mobile-route-nav span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mobile-topbar-home {
+    min-width: 54px;
   }
   .mobile-topbar strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .icon-btn { width: 42px; padding: 0; }
@@ -6615,9 +6658,25 @@ progress::-webkit-progress-value { background: var(--primary); border-radius: 99
 }
 
 @media (max-width: 430px) {
-  .mobile-topbar {
+  .mobile-topbar-main {
     grid-template-columns: 42px minmax(0, 1fr) 42px;
     gap: 8px;
+  }
+
+  .mobile-route-nav {
+    gap: 5px;
+  }
+
+  .mobile-route-nav button {
+    min-height: 36px;
+    gap: 3px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  .mobile-route-nav svg {
+    width: 13px;
+    height: 13px;
   }
 
   .workspace-shell,

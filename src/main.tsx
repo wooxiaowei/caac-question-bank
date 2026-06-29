@@ -796,7 +796,7 @@ function App() {
         onAuth={handleAuth}
         onLogout={handleLogout}
       />
-      <MobileTopBar route={route} onMenu={() => setDrawerOpen(true)} onFocus={() => setFocusMode(true)} onNavigate={navigate} />
+      <MobileTopBar route={route} onMenu={() => setDrawerOpen(true)} onNavigate={navigate} />
       <div className={`workspace-shell ${route === "exam" ? `exam-shell ${exam?.result ? "exam-report-shell" : ""}` : route === "dashboard" ? "dashboard-shell" : route === "wrongbook" ? "wrongbook-shell" : ""}`}>
         {route === "practice" && (
           <aside className={`sidebar ${drawerOpen ? "open" : ""}`}>
@@ -1378,12 +1378,36 @@ function ActivityLine() {
   );
 }
 
-function MobileTopBar({ route, onMenu, onFocus, onNavigate }: { route: Route; onMenu: () => void; onFocus: () => void; onNavigate: (route: Route) => void }) {
+function MobileTopBar({ route, onMenu, onNavigate }: { route: Route; onMenu: () => void; onNavigate: (route: Route) => void }) {
+  const title = route === "dashboard" ? "学习总览" : route === "exam" ? "模拟考试" : route === "wrongbook" ? "错题本" : "刷题练习";
+  const navItems: Array<{ route: Route; label: string; icon: React.ReactNode }> = [
+    { route: "practice", label: "练习", icon: <BookOpen size={14} /> },
+    { route: "exam", label: "模拟考试", icon: <Timer size={14} /> },
+    { route: "wrongbook", label: "错题本", icon: <ClipboardList size={14} /> },
+    { route: "dashboard", label: "学习总览", icon: <Grid2X2 size={14} /> }
+  ];
   return (
     <header className="mobile-topbar">
-      <button className="icon-btn" onClick={onMenu} aria-label="打开菜单"><Menu size={20} /></button>
-      <strong>{route === "dashboard" ? "学习总览" : route === "exam" ? "模拟考试" : route === "wrongbook" ? "错题本" : "刷题练习"}</strong>
-      <button onClick={route === "practice" ? onFocus : () => onNavigate("practice")}>{route === "practice" ? "专注" : "刷题"}</button>
+      <div className="mobile-topbar-main">
+        <button className="icon-btn" onClick={route === "practice" ? onMenu : () => onNavigate("practice")} aria-label={route === "practice" ? "打开菜单" : "返回练习"}>
+          <Menu size={20} />
+        </button>
+        <strong>{title}</strong>
+        <button className="mobile-topbar-home" onClick={() => onNavigate("practice")}>刷题</button>
+      </div>
+      <nav className="mobile-route-nav" aria-label="移动端导航">
+        {navItems.map((item) => (
+          <button
+            key={item.route}
+            className={route === item.route ? "active" : ""}
+            type="button"
+            onClick={() => onNavigate(item.route)}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </header>
   );
 }
