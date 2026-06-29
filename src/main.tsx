@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   BarChart3,
   BookOpen,
+  BookOpenCheck,
   Brain,
   Bookmark,
   CheckCircle2,
@@ -27,6 +28,7 @@ import {
   RotateCcw,
   Search,
   Shuffle,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Target,
@@ -60,7 +62,7 @@ import { answerQuestion, getPracticeQuestions, toggleFavorite, toggleWeak } from
 import { createQuestionProgress, loadProgress, mergeProgress, migrateProgress, saveProgress, serializeForRemote } from "./services/progressStore";
 import "./styles.css";
 
-type Route = "practice" | "dashboard" | "exam" | "wrongbook" | "login";
+type Route = "practice" | "dashboard" | "exam" | "wrongbook" | "mine" | "login";
 type SyncState = "未登录" | "待同步" | "同步中" | "已同步" | "同步失败";
 type ToastTone = "success" | "danger" | "info";
 type PracticeToast = { id: number; tone: ToastTone; text: string } | null;
@@ -78,6 +80,15 @@ type PracticeMetrics = {
   streak: number;
 };
 type ExamPhase = "setup" | "running" | "finished";
+type StudySessionMode = "practice" | "wrong" | "exam";
+type StudySession = {
+  mode: StudySessionMode;
+  currentQuestionId: string;
+  progress: number;
+  accuracy: number;
+  startTime: number;
+  autoNext: boolean;
+};
 type ActiveExam = {
   config: ExamConfig;
   questions: Question[];
@@ -95,6 +106,7 @@ const DEFAULT_EXAM_DURATION_MINUTES = 120;
 const DEFAULT_EXAM_TARGET_ACCURACY = 80;
 const EXAM_PASS_SCORE = 80;
 const EXAM_UI_VERSION = "exam-workstation-20260627-02";
+const STUDY_SESSION_KEY = "uavQuizStudySessionV3";
 
 const modeLabels: Record<PracticeMode, string> = {
   sequence: "背题模式",
@@ -118,11 +130,12 @@ function readRoute(): Route {
   if (window.location.pathname.includes("login")) return "login";
   if (window.location.pathname.includes("exam")) return "exam";
   if (window.location.pathname.includes("wrongbook")) return "wrongbook";
+  if (window.location.pathname.includes("mine")) return "mine";
   return window.location.pathname.includes("dashboard") ? "dashboard" : "practice";
 }
 
 function routePath(route: Route) {
-  return route === "dashboard" ? "/dashboard" : route === "exam" ? "/exam" : route === "wrongbook" ? "/wrongbook" : route === "login" ? "/login" : "/practice";
+  return route === "dashboard" ? "/dashboard" : route === "exam" ? "/exam" : route === "wrongbook" ? "/wrongbook" : route === "mine" ? "/mine" : route === "login" ? "/login" : "/practice";
 }
 
 function readQuery() {
@@ -146,6 +159,10 @@ function writeQuery(route: Route, state: { chapter: string; mode: PracticeMode; 
   }
   if (route === "wrongbook") {
     window.history.replaceState(null, "", "/wrongbook");
+    return;
+  }
+  if (route === "mine") {
+    window.history.replaceState(null, "", "/mine");
     return;
   }
   if (route === "login") {
@@ -228,6 +245,48 @@ function getQuestionSimilarity(source: Question, target: Question) {
   return Math.min(98, lexicalScore + chapterScore + answerScore);
 }
 
+function loadStudySession(storage: Storage): StudySession | null {
+  try {
+    const raw = storage.getItem(STUDY_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StudySession>;
+    if (!parsed.mode || !["practice", "wrong", "exam"].includes(parsed.mode)) return null;
+    return {
+      mode: parsed.mode,
+      currentQuestionId: String(parsed.currentQuestionId || ""),
+      progress: Math.max(0, Math.min(100, Number(parsed.progress || 0))),
+      accuracy: Math.max(0, Math.min(100, Number(parsed.accuracy || 0))),
+      startTime: Number(parsed.startTime || Date.now()),
+      autoNext: parsed.autoNext !== false
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveStudySession(storage: Storage, session: StudySession | null) {
+  if (!session) {
+    storage.removeItem(STUDY_SESSION_KEY);
+    return;
+  }
+  storage.setItem(STUDY_SESSION_KEY, JSON.stringify(session));
+}
+
+function buildStudySession(mode: StudySessionMode, questionId: string, progressValue: number, accuracy: number, previous?: StudySession | null): StudySession {
+  return {
+    mode,
+    currentQuestionId: questionId,
+    progress: Math.max(0, Math.min(100, Math.round(progressValue))),
+    accuracy: Math.max(0, Math.min(100, Math.round(accuracy))),
+    startTime: previous?.mode === mode && previous.currentQuestionId ? previous.startTime : Date.now(),
+    autoNext: previous?.autoNext ?? true
+  };
+}
+
+function studySessionRoute(mode: StudySessionMode): Route {
+  return mode === "exam" ? "exam" : mode === "wrong" ? "wrongbook" : "practice";
+}
+
 function createActiveExam(bank: QuestionBank, progress: ProgressState, config?: Partial<ExamConfig>, seed = Date.now()): ActiveExam {
   const nextConfig: ExamConfig = {
     questionCount: Math.min(config?.questionCount ?? DEFAULT_EXAM_QUESTION_COUNT, bank.total),
@@ -254,7 +313,7 @@ function App() {
   const initialRoute = readRoute();
   const initialToken = localStorage.getItem("uavQuizToken") || "";
   const [route, setRoute] = useState<Route>(initialToken || initialRoute === "login" ? initialRoute : "login");
-  const [returnRoute, setReturnRoute] = useState<Route>(initialRoute === "login" ? "practice" : initialRoute);
+  const [returnRoute, setReturnRoute] = useState<Route>(initialRoute === "login" ? "dashboard" : initialRoute);
   const [bank, setBank] = useState<QuestionBank | null>(null);
   const [bankError, setBankError] = useState("");
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress(window.localStorage));
@@ -266,7 +325,7 @@ function App() {
   const [selected, setSelected] = useState("");
   const [revealed, setRevealed] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [focusMode, setFocusMode] = useState(false);
+  const [practiceSheetOpen, setPracticeSheetOpen] = useState(false);
   const [token, setToken] = useState(initialToken);
   const [user, setUser] = useState<User | null>(null);
   const [syncState, setSyncState] = useState<SyncState>(token ? "待同步" : "未登录");
@@ -280,6 +339,7 @@ function App() {
   const [streak, setStreak] = useState(0);
   const [toast, setToast] = useState<PracticeToast>(null);
   const [answerNotice, setAnswerNotice] = useState<AnswerNotice>(null);
+  const [studySession, setStudySession] = useState<StudySession | null>(() => loadStudySession(window.localStorage));
   const [exam, setExam] = useState<ActiveExam | null>(null);
   const [examAiLoading, setExamAiLoading] = useState(false);
   const [examAiContent, setExamAiContent] = useState("");
@@ -296,6 +356,8 @@ function App() {
   const [wrongbookExpanded, setWrongbookExpanded] = useState(false);
   const [wrongbookSimilarPage, setWrongbookSimilarPage] = useState(0);
   const [wrongbookPlanFilter, setWrongbookPlanFilter] = useState<WrongbookPlanFilter>("全部计划");
+
+  const autoNextTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchQuestionBank().then(setBank).catch((error) => setBankError(error.message));
@@ -392,6 +454,12 @@ function App() {
       });
   }, [bank, progress, wrongbookSearch, wrongbookChapter, wrongbookDifficulty, wrongbookStatus, wrongbookPlanFilter]);
 
+  const activeWrongbookQuestion = wrongbookQuestions[Math.min(wrongbookIndex, Math.max(wrongbookQuestions.length - 1, 0))] || null;
+
+  useEffect(() => {
+    saveStudySession(window.localStorage, studySession);
+  }, [studySession]);
+
   useEffect(() => {
     setIndex(0);
     setSelected("");
@@ -419,6 +487,43 @@ function App() {
   }, [toast]);
 
   useEffect(() => {
+    return () => {
+      if (autoNextTimerRef.current) window.clearTimeout(autoNextTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeQuestion || !practiceMetrics) return;
+    const sessionProgress = questions.length ? ((index + 1) / questions.length) * 100 : 0;
+    setStudySession((current) => {
+      if (current?.mode === "exam" && exam && !exam.result) return current;
+      const next = buildStudySession("practice", activeQuestion.id, sessionProgress, practiceMetrics.totalAccuracy, current);
+      if (
+        current?.mode === next.mode &&
+        current.currentQuestionId === next.currentQuestionId &&
+        current.progress === next.progress &&
+        current.accuracy === next.accuracy &&
+        current.autoNext === next.autoNext
+      ) return current;
+      return next;
+    });
+  }, [activeQuestion?.id, index, questions.length, practiceMetrics?.totalAccuracy, exam?.result]);
+
+  useEffect(() => {
+    if (!activeWrongbookQuestion || route !== "wrongbook") return;
+    const sessionProgress = wrongbookQuestions.length ? ((wrongbookIndex + 1) / wrongbookQuestions.length) * 100 : 0;
+    setStudySession((current) => buildStudySession("wrong", activeWrongbookQuestion.id, sessionProgress, stats?.accuracy ?? 0, current));
+  }, [activeWrongbookQuestion?.id, wrongbookIndex, wrongbookQuestions.length, route, stats?.accuracy]);
+
+  useEffect(() => {
+    if (!exam || exam.result) return;
+    const question = exam.questions[exam.index];
+    if (!question) return;
+    const answered = Object.keys(exam.answers).filter((id) => exam.questions.some((item) => item.id === id)).length;
+    setStudySession((current) => buildStudySession("exam", question.id, exam.questions.length ? (answered / exam.questions.length) * 100 : 0, 0, current));
+  }, [exam?.index, exam?.answers, exam?.result, exam?.questions.length]);
+
+  useEffect(() => {
     if (!exam || !exam.started || exam.result || exam.remainingSeconds <= 0) return;
     const timer = window.setInterval(() => {
       setExam((current) => {
@@ -444,6 +549,31 @@ function App() {
     }
     setRoute(nextRoute);
     window.history.pushState(null, "", routePath(nextRoute));
+  }
+
+  function restoreStudySession(targetRoute?: Route) {
+    const session = studySession;
+    if (targetRoute === "exam") {
+      navigate("exam");
+      return;
+    }
+    if (targetRoute === "wrongbook") {
+      navigate("wrongbook");
+      return;
+    }
+    if (!session) {
+      navigate(targetRoute && targetRoute !== "dashboard" ? targetRoute : "practice");
+      return;
+    }
+    const nextRoute = studySessionRoute(session.mode);
+    navigate(targetRoute === "mine" ? "mine" : nextRoute);
+  }
+
+  function toggleAutoNext() {
+    setStudySession((current) => ({
+      ...(current || buildStudySession("practice", activeQuestion?.id || "", 0, practiceMetrics?.totalAccuracy ?? 0)),
+      autoNext: !(current?.autoNext ?? true)
+    }));
   }
 
   function updateProgress(next: ProgressState) {
@@ -587,6 +717,13 @@ function App() {
 
     setAnswerNotice(nextNotice);
     updateProgress(nextProgress);
+    if (studySession?.autoNext !== false && index < questions.length - 1 && window.matchMedia("(max-width: 768px)").matches) {
+      if (autoNextTimerRef.current) window.clearTimeout(autoNextTimerRef.current);
+      autoNextTimerRef.current = window.setTimeout(() => {
+        moveQuestion(1);
+        autoNextTimerRef.current = null;
+      }, isCorrect ? 720 : 1150);
+    }
   }
 
   function updateSingleQuestionProgress(questionId: string, updater: (item: ProgressState["questions"][string]) => ProgressState["questions"][string]) {
@@ -663,6 +800,7 @@ function App() {
   }
 
   function practiceRelatedQuestion(question: Question) {
+    setStudySession((current) => buildStudySession("wrong", question.id, 0, stats?.accuracy ?? 0, current));
     setChapter(question.chapter);
     setMode("sequence");
     setFilter("all");
@@ -770,10 +908,10 @@ function App() {
         onPassword={setPassword}
         onAuth={async (kind) => {
           const ok = await handleAuth(kind);
-          if (ok) navigate(returnRoute === "login" ? "practice" : returnRoute);
+          if (ok) navigate(returnRoute === "login" || returnRoute === "practice" ? "dashboard" : returnRoute);
           return ok;
         }}
-        onBack={() => navigate(returnRoute === "login" ? "practice" : returnRoute)}
+        onBack={() => navigate(returnRoute === "login" ? "dashboard" : returnRoute)}
       />
     );
   }
@@ -783,7 +921,7 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${focusMode ? "focus-mode" : ""}`}>
+    <div className="app-shell">
       <AppHeader
         route={route}
         user={user}
@@ -796,7 +934,89 @@ function App() {
         onAuth={handleAuth}
         onLogout={handleLogout}
       />
-      <MobileTopBar route={route} onMenu={() => setDrawerOpen(true)} onNavigate={navigate} />
+      <MobileTopBar
+        route={route}
+        user={user}
+        syncState={syncState}
+        onMenu={() => setDrawerOpen(true)}
+        onNavigate={navigate}
+        onPracticeFilters={() => setPracticeSheetOpen(true)}
+      />
+      <NativeMobileShell
+        route={route}
+        user={user}
+        syncState={syncState}
+        bank={bank}
+        stats={stats}
+        progress={progress}
+        practiceQuestions={questions}
+        activeQuestion={activeQuestion}
+        activeProgress={activeProgress}
+        practiceIndex={index}
+        chapter={chapter}
+        mode={mode}
+        filter={filter}
+        search={search}
+        selected={selected || activeProgress?.lastAnswer || ""}
+        revealed={revealed || Boolean(activeProgress?.attempts)}
+        aiLoading={aiLoading && aiQuestionId === activeQuestion?.id}
+        aiContent={aiQuestionId === activeQuestion?.id ? aiContent : ""}
+        practiceMetrics={practiceMetrics}
+        studySession={studySession}
+        answerNotice={answerNotice?.questionId === activeQuestion?.id ? answerNotice : null}
+        wrongbookQuestions={wrongbookQuestions}
+        exam={exam}
+        onNavigate={navigate}
+        onResumeSession={restoreStudySession}
+        onToggleAutoNext={toggleAutoNext}
+        onOpenFilters={() => setPracticeSheetOpen(true)}
+        onCloseFilters={() => setPracticeSheetOpen(false)}
+        practiceSheetOpen={practiceSheetOpen}
+        onChapter={setChapter}
+        onMode={setMode}
+        onFilter={setFilter}
+        onSearch={setSearch}
+        onAnswer={chooseAnswer}
+        onReveal={() => setRevealed(true)}
+        onPrev={() => moveQuestion(-1)}
+        onNext={() => moveQuestion(1)}
+        onFavorite={() => activeQuestion && updateProgress(toggleFavorite(progress, activeQuestion.id))}
+        onWeak={() => activeQuestion && updateProgress(toggleWeak(progress, activeQuestion.id))}
+        onAi={handleAiExplain}
+        onWrongbookPractice={practiceRelatedQuestion}
+        onStartExam={startExam}
+        onExamAnswer={answerExamQuestion}
+        onExamJump={moveExamQuestion}
+        onExamMark={toggleExamMark}
+        onExamSubmit={submitExam}
+        onExamReset={resetExam}
+      />
+      {route === "practice" && (
+        <BottomSheet open={practiceSheetOpen} title={"\u7b5b\u9009"} onClose={() => setPracticeSheetOpen(false)}>
+          <div className="mobile-filter-sheet native-filter-sheet">
+            <PracticeToolbar
+              mode={mode}
+              filter={filter}
+              search={search}
+              onMode={setMode}
+              onFilter={setFilter}
+              onSearch={setSearch}
+            />
+            <ChapterSidebar
+              chapters={bank.chapters}
+              total={bank.total}
+              active={chapter}
+              progress={progress}
+              questions={bank.questions}
+              onSelect={(next) => {
+                setChapter(next);
+                setPracticeSheetOpen(false);
+                navigate("practice");
+              }}
+            />
+          </div>
+        </BottomSheet>
+      )}
       <div className={`workspace-shell ${route === "exam" ? `exam-shell ${exam?.result ? "exam-report-shell" : ""}` : route === "dashboard" ? "dashboard-shell" : route === "wrongbook" ? "wrongbook-shell" : ""}`}>
         {route === "practice" && (
           <aside className={`sidebar ${drawerOpen ? "open" : ""}`}>
@@ -921,12 +1141,14 @@ function App() {
               onFavorite={() => activeQuestion && updateProgress(toggleFavorite(progress, activeQuestion.id))}
               onWeak={() => activeQuestion && updateProgress(toggleWeak(progress, activeQuestion.id))}
               onAi={handleAiExplain}
-              onExitFocus={() => setFocusMode(false)}
+              onOpenFilters={() => setPracticeSheetOpen(true)}
             />
           )}
         </main>
       </div>
       {route === "practice" && drawerOpen && <button className="drawer-backdrop" aria-label="关闭菜单" onClick={() => setDrawerOpen(false)} />}
+
+      <MobileTabBar route={route} onNavigate={navigate} />
     </div>
   );
 }
@@ -1378,37 +1600,630 @@ function ActivityLine() {
   );
 }
 
-function MobileTopBar({ route, onMenu, onNavigate }: { route: Route; onMenu: () => void; onNavigate: (route: Route) => void }) {
-  const title = route === "dashboard" ? "学习总览" : route === "exam" ? "模拟考试" : route === "wrongbook" ? "错题本" : "刷题练习";
-  const navItems: Array<{ route: Route; label: string; icon: React.ReactNode }> = [
-    { route: "practice", label: "练习", icon: <BookOpen size={14} /> },
-    { route: "exam", label: "模拟考试", icon: <Timer size={14} /> },
-    { route: "wrongbook", label: "错题本", icon: <ClipboardList size={14} /> },
-    { route: "dashboard", label: "学习总览", icon: <Grid2X2 size={14} /> }
-  ];
+function MobileTopBar({ route, user, syncState, onMenu, onNavigate, onPracticeFilters }: { route: Route; user: User | null; syncState: SyncState; onMenu: () => void; onNavigate: (route: Route) => void; onPracticeFilters: () => void }) {
+  const title = route === "dashboard" ? "\u5b66\u4e60\u603b\u89c8" : route === "exam" ? "\u6a21\u62df\u8003\u8bd5" : route === "wrongbook" ? "\u9519\u9898\u672c" : "\u5237\u9898\u7ec3\u4e60";
+  const subtitle = route === "practice" ? "\u4e13\u6ce8\u5237\u9898 ? \u968f\u65f6\u5207\u6362\u9898\u5e93" : route === "exam" ? "\u8ba1\u65f6\u8003\u8bd5 ? \u7b54\u9898\u5361\u6536\u8fdb\u5e95\u90e8" : route === "wrongbook" ? "\u9519\u9898\u5de9\u56fa ? \u9ad8\u9891\u4f18\u5148" : "\u4eca\u65e5\u8fdb\u5ea6 ? \u5b66\u4e60\u6570\u636e";
+  const handleAction = route === "practice" ? onPracticeFilters : () => onNavigate("dashboard");
   return (
     <header className="mobile-topbar">
       <div className="mobile-topbar-main">
-        <button className="icon-btn" onClick={route === "practice" ? onMenu : () => onNavigate("practice")} aria-label={route === "practice" ? "打开菜单" : "返回练习"}>
+        <button className="icon-btn mobile-filter-entry" onClick={route === "practice" ? onPracticeFilters : onMenu} aria-label={route === "practice" ? "\u6253\u5f00\u7b5b\u9009" : "\u6253\u5f00\u83dc\u5355"}>
           <Menu size={20} />
         </button>
-        <strong>{title}</strong>
-        <button className="mobile-topbar-home" onClick={() => onNavigate("practice")}>刷题</button>
+        <div className="mobile-title-stack">
+          <strong>{title}</strong>
+          <span>{subtitle}</span>
+        </div>
+        <button className="mobile-topbar-home" onClick={handleAction}>{route === "practice" ? "\u7b5b\u9009" : (user?.username || syncState)}</button>
       </div>
-      <nav className="mobile-route-nav" aria-label="移动端导航">
-        {navItems.map((item) => (
-          <button
-            key={item.route}
-            className={route === item.route ? "active" : ""}
-            type="button"
-            onClick={() => onNavigate(item.route)}
-          >
+    </header>
+  );
+}
+
+function MobileTabBar({ route, onNavigate }: { route: Route; onNavigate: (route: Route) => void }) {
+  const navItems: Array<{ route: Route; label: string; icon: React.ReactNode; match?: Route[] }> = [
+    { route: "dashboard", label: "\u9996\u9875", icon: <LayoutDashboard size={20} />, match: ["dashboard"] },
+    { route: "practice", label: "\u7ec3\u4e60", icon: <BookOpen size={20} />, match: ["practice"] },
+    { route: "wrongbook", label: "\u9519\u9898", icon: <ClipboardList size={20} />, match: ["wrongbook"] },
+    { route: "exam", label: "\u8003\u8bd5", icon: <Timer size={20} />, match: ["exam"] },
+    { route: "dashboard", label: "\u6211\u7684", icon: <UserRound size={20} />, match: ["login"] }
+  ];
+  return (
+    <nav className="mobile-tabbar" aria-label={"\u79fb\u52a8\u7aef\u5e95\u90e8\u5bfc\u822a"}>
+      {navItems.map((item, index) => {
+        const active = (item.match || [item.route]).includes(route);
+        return (
+          <button key={`${item.label}-${index}`} className={active ? "active" : ""} type="button" onClick={() => onNavigate(item.route)}>
             {item.icon}
             <span>{item.label}</span>
           </button>
-        ))}
-      </nav>
+        );
+      })}
+    </nav>
+  );
+}
+
+function BottomSheet({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
+  if (!open) return null;
+  return (
+    <div className="bottom-sheet-layer sheet-open" style={{ display: "block" }} role="dialog" aria-modal="true" aria-label={title}>
+      <button className="bottom-sheet-backdrop" type="button" aria-label={"\u5173\u95ed"} onClick={onClose} />
+      <section className="bottom-sheet">
+        <div className="bottom-sheet-handle" />
+        <header className="bottom-sheet-head">
+          <strong>{title}</strong>
+          <button className="icon-btn" type="button" onClick={onClose} aria-label={"\u5173\u95ed"}><XCircle size={20} /></button>
+        </header>
+        <div className="bottom-sheet-body">{children}</div>
+      </section>
+    </div>
+  );
+}
+
+type NativeMobileShellProps = {
+  route: Route;
+  user: User | null;
+  syncState: SyncState;
+  bank: QuestionBank;
+  stats: ReturnType<typeof buildDashboardStats>;
+  progress: ProgressState;
+  practiceQuestions: Question[];
+  activeQuestion: Question | null;
+  activeProgress: ProgressState["questions"][string] | undefined;
+  practiceIndex: number;
+  chapter: string;
+  mode: PracticeMode;
+  filter: QuestionFilter;
+  search: string;
+  selected: string;
+  revealed: boolean;
+  aiLoading: boolean;
+  aiContent: string;
+  practiceMetrics: PracticeMetrics | null;
+  studySession: StudySession | null;
+  answerNotice: AnswerNotice;
+  wrongbookQuestions: Question[];
+  exam: ActiveExam | null;
+  onNavigate: (route: Route) => void;
+  onResumeSession: (route?: Route) => void;
+  onToggleAutoNext: () => void;
+  onOpenFilters: () => void;
+  onCloseFilters: () => void;
+  practiceSheetOpen: boolean;
+  onChapter: (chapter: string) => void;
+  onMode: (value: PracticeMode) => void;
+  onFilter: (value: QuestionFilter) => void;
+  onSearch: (value: string) => void;
+  onAnswer: (answer: string) => void;
+  onReveal: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  onFavorite: () => void;
+  onWeak: () => void;
+  onAi: () => void;
+  onWrongbookPractice: (question: Question) => void;
+  onStartExam: (config: ExamConfig) => void;
+  onExamAnswer: (questionId: string, answer: string) => void;
+  onExamJump: (index: number) => void;
+  onExamMark: (questionId: string) => void;
+  onExamSubmit: () => void;
+  onExamReset: () => void;
+};
+
+function NativeMobileShell(props: NativeMobileShellProps) {
+  const activeRoute: Route = props.route === "mine" ? "mine" : props.route;
+  const examRunning = props.route === "exam" && Boolean(props.exam && !props.exam.result);
+  const hideTopChrome = props.route === "dashboard" || props.route === "wrongbook" || props.route === "mine" || props.route === "exam";
+  const showStatus = false;
+  const showAppBar = !hideTopChrome && props.route !== "practice" && !examRunning;
+  const showTabBar = true;
+  const status = buildMobileStudyStatus(props);
+  return (
+    <section className={`native-mobile-shell route-${activeRoute} ${showStatus ? "has-status" : "no-status"} ${showAppBar ? "has-appbar" : "no-appbar"} ${showTabBar ? "has-tabbar" : "no-tabbar"}`} aria-label="mobile app shell">
+      {showAppBar && <NativeAppBar
+        route={activeRoute}
+        user={props.user}
+        syncState={props.syncState}
+        session={props.studySession}
+        onNavigate={props.onNavigate}
+        onResumeSession={props.onResumeSession}
+        onToggleAutoNext={props.onToggleAutoNext}
+      />}
+      {showStatus && <MobileStudyStatusBar status={status} />}
+      <main className="native-router-content">
+        {props.route === "exam" ? (
+          <MobileExamScreen {...props} />
+        ) : props.route === "wrongbook" ? (
+          <MobileWrongBookScreen {...props} />
+        ) : props.route === "practice" ? (
+          <MobilePracticeScreen {...props} />
+        ) : props.route === "mine" ? (
+          <MobileMineScreen {...props} />
+        ) : (
+          <MobileContinueScreen {...props} />
+        )}
+      </main>
+      {showTabBar && <NativeTabBar route={activeRoute} onNavigate={props.onNavigate} onResumeSession={props.onResumeSession} />}
+    </section>
+  );
+}
+
+function buildMobileStudyStatus(props: Pick<NativeMobileShellProps, "practiceIndex" | "practiceQuestions" | "practiceMetrics" | "exam">) {
+  if (props.exam && !props.exam.result) {
+    const answered = Object.keys(props.exam.answers).filter((id) => props.exam?.questions.some((question) => question.id === id)).length;
+    return {
+      title: `${props.exam.index + 1}/${props.exam.questions.length}`,
+      accuracy: `${Math.round((answered / Math.max(props.exam.questions.length, 1)) * 100)}%`,
+      time: formatDuration(props.exam.remainingSeconds)
+    };
+  }
+  return {
+    title: `${Math.min(props.practiceIndex + 1, props.practiceQuestions.length || 1)}/${Math.max(props.practiceQuestions.length, 1)}`,
+    accuracy: `${props.practiceMetrics?.totalAccuracy ?? 0}%`,
+    time: `${props.practiceMetrics?.todayCount ?? 0}`
+  };
+}
+
+function NativeAppBar(props: { route: Route; user: User | null; syncState: SyncState; session: StudySession | null; onNavigate: (route: Route) => void; onResumeSession: (route?: Route) => void; onToggleAutoNext: () => void }) {
+  const titles: Record<Route, { title: string; subtitle: string }> = {
+    dashboard: { title: "\u9996\u9875", subtitle: "\u4eca\u65e5\u4efb\u52a1\u6d41" },
+    practice: { title: "\u5237\u9898", subtitle: "\u5355\u624b\u7ec3\u4e60\u6a21\u5f0f" },
+    wrongbook: { title: "\u9519\u9898", subtitle: "\u590d\u4e60\u6d41" },
+    exam: { title: "\u8003\u8bd5", subtitle: "\u6a21\u62df\u5b9e\u6218" },
+    mine: { title: "\u6211\u7684", subtitle: props.user?.username || props.syncState },
+    login: { title: "\u767b\u5f55", subtitle: "\u8d26\u53f7\u540c\u6b65" }
+  };
+  const current = titles[props.route] || titles.dashboard;
+  return (
+    <header className="native-appbar">
+      <button className="native-avatar" type="button" onClick={() => props.onNavigate("mine")} aria-label={"\u6211\u7684"}>
+        <img src="/assets/enterprise-icon-full-transparent.png" alt="" />
+      </button>
+      <div className="native-appbar-title">
+        <strong>{current.title}</strong>
+        <span>{current.subtitle}</span>
+      </div>
+      {props.route === "practice" ? (
+        <button className={`native-appbar-action icon-only ${props.session?.autoNext === false ? "" : "active"}`} type="button" onClick={props.onToggleAutoNext} aria-label={props.session?.autoNext === false ? "\u5f00\u542f\u81ea\u52a8\u4e0b\u4e00\u9898" : "\u5173\u95ed\u81ea\u52a8\u4e0b\u4e00\u9898"}><Sparkles size={18} /></button>
+      ) : (
+        <button className="native-appbar-action icon-only" type="button" onClick={() => props.onResumeSession()} aria-label={"\u7ee7\u7eed\u5b66\u4e60"}><BookOpen size={19} /></button>
+      )}
     </header>
+  );
+}
+
+function MobileStudyStatusBar({ status }: { status: { title: string; accuracy: string; time: string } }) {
+  return (
+    <div className="native-study-status" aria-label={"\u5b66\u4e60\u72b6\u6001"}>
+      <span><b>{status.title}</b><em>{'\u5f53\u524d\u8fdb\u5ea6'}</em></span>
+      <span><b>{status.accuracy}</b><em>{'\u6b63\u786e\u7387'}</em></span>
+      <span><b>{status.time}</b><em>{'\u7528\u65f6/\u4eca\u65e5'}</em></span>
+    </div>
+  );
+}
+
+function NativeTabBar({ route, onNavigate, onResumeSession }: { route: Route; onNavigate: (route: Route) => void; onResumeSession: (route?: Route) => void }) {
+  const items: Array<{ route: Route; label: string; icon: React.ReactNode }> = [
+    { route: "dashboard", label: "\u9996\u9875", icon: <LayoutDashboard size={20} /> },
+    { route: "practice", label: "\u7ec3\u4e60", icon: <BookOpen size={20} /> },
+    { route: "wrongbook", label: "\u9519\u9898", icon: <ClipboardList size={20} /> },
+    { route: "exam", label: "\u8003\u8bd5", icon: <Timer size={20} /> },
+    { route: "mine", label: "\u6211\u7684", icon: <UserRound size={20} /> }
+  ];
+  return (
+    <nav className="native-tabbar" aria-label={"\u5e95\u90e8\u5bfc\u822a"}>
+      {items.map((item) => (
+        <button key={item.label} type="button" className={route === item.route ? "active" : ""} onClick={() => {
+            if (item.route === "dashboard") onNavigate("dashboard");
+            else if (item.route === "practice") onNavigate("practice");
+            else if (item.route === "wrongbook") onNavigate("wrongbook");
+            else if (item.route === "exam") onNavigate("exam");
+            else onNavigate(item.route);
+          }}>
+          {item.icon}
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function MobileContinueScreen(props: NativeMobileShellProps) {
+  const percent = props.stats.total ? Math.round((props.stats.answered / props.stats.total) * 100) : 0;
+  const recentWrong = props.wrongbookQuestions.slice(0, 3);
+  const latestExam = [...props.progress.examRecords].sort((a, b) => b.createdAt - a.createdAt)[0];
+  const sessionModeLabel = props.studySession?.mode === "exam" ? "\u7ee7\u7eed\u8003\u8bd5" : props.studySession?.mode === "wrong" ? "\u7ee7\u7eed\u590d\u4e60\u9519\u9898" : "\u7ee7\u7eed\u5237\u9898";
+  return (
+    <section className="native-screen continue-screen">
+      <div className="native-hero-card">
+        <span className="native-kicker">{'\u5b66\u4e60\u6d41'}</span>
+        <h1>{sessionModeLabel}</h1>
+        <p>{'\u5df2\u7ec3'} <b>{props.stats.answered}</b> / {props.stats.total} {'\u9898\uff0c\u603b\u6b63\u786e\u7387'} <b>{props.stats.accuracy}%</b></p>
+        <i className="native-progress"><b style={{ width: `${percent}%` }} /></i>
+        <button className="native-primary-action" type="button" onClick={() => props.onResumeSession()}><BookOpen size={20} />{'\u4e00\u952e\u7ee7\u7eed\u5b66\u4e60'}</button>
+      </div>
+      <div className="native-entry-grid" aria-label={"\u5b66\u4e60\u5165\u53e3"}>
+        <button className="native-entry-card primary" type="button" onClick={() => props.onNavigate("practice")}>
+          <span><BookOpen size={24} /></span>
+          <strong>{'\u5237\u9898'}</strong>
+          <em>{'\u8fdb\u5165\u9898\u5e93\uff0c\u5f00\u59cb\u7ec3\u4e60'}</em>
+          <b>{props.practiceQuestions.length || props.stats.total} {'\u9898'}</b>
+        </button>
+        <button className="native-entry-card exam" type="button" onClick={() => props.onNavigate("exam")}>
+          <span><Timer size={24} /></span>
+          <strong>{'\u6a21\u62df\u8003\u8bd5'}</strong>
+          <em>{'\u8fdb\u5165\u8ba1\u65f6\u8003\u8bd5\uff0c\u4ea4\u5377\u540e\u770b\u62a5\u544a'}</em>
+          <b>{'\u9ed8\u8ba4'} 100 {'\u9898'}</b>
+        </button>
+        <button className="native-entry-card wrong" type="button" onClick={() => props.onNavigate("wrongbook")}>
+          <span><ClipboardList size={24} /></span>
+          <strong>{'\u9519\u9898'}</strong>
+          <em>{'\u590d\u4e60\u7b54\u9519\u7684\u9898\uff0c\u5de9\u56fa\u8584\u5f31\u70b9'}</em>
+          <b>{props.stats.wrong} {'\u9898'}</b>
+        </button>
+      </div>
+      <div className="native-card-row" aria-label={"\u4eca\u65e5\u8fdb\u5ea6"}>
+        <NativeMetric label={"\u4eca\u65e5"} value={String(props.practiceMetrics?.todayCount ?? 0)} unit={"\u9898"} />
+        <NativeMetric label={"\u9519\u9898"} value={String(props.stats.wrong)} unit={"\u9898"} tone="warn" />
+        <NativeMetric label={"\u8fdb\u5ea6"} value={String(props.studySession?.progress ?? percent)} unit="%" />
+      </div>
+      <section className="native-card">
+        <NativeSectionHead icon={<ClipboardList size={18} />} title={"\u6700\u8fd1\u9519\u9898"} action={props.wrongbookQuestions.length ? "\u7ee7\u7eed\u590d\u4e60" : ""} onAction={() => props.onResumeSession("wrongbook")} />
+        {recentWrong.length ? recentWrong.map((question) => (
+          <button className="native-wrong-preview" type="button" key={question.id} onClick={() => props.onWrongbookPractice(question)}>
+            <span>{question.chapter}</span>
+            <strong>{question.stem}</strong>
+            <em>{'\u70b9\u51fb\u8fdb\u5165\u9519\u9898\u590d\u4e60'}</em>
+            <ChevronRight size={18} />
+          </button>
+        )) : <p className="native-empty">{'\u6682\u65e0\u9519\u9898\uff0c\u5148\u5b8c\u6210\u4e00\u7ec4\u7ec3\u4e60\u3002'}</p>}
+      </section>
+      {false && <section className="native-card">
+        <NativeSectionHead icon={<Timer size={18} />} title={"\u6700\u8fd1\u8003\u8bd5"} action={"\u5f00\u59cb\u8003\u8bd5"} onAction={() => props.onNavigate("exam")} />
+        {latestExam ? (
+          <div className="native-exam-summary">
+            <strong>{latestExam.total ? Math.round((latestExam.correct / latestExam.total) * 100) : 0}<small>{'\u5206'}</small></strong>
+            <span>{formatDateTime(latestExam.createdAt)} · {latestExam.correct}/{latestExam.total}</span>
+          </div>
+        ) : <p className="native-empty">{'\u8fd8\u6ca1\u6709\u8003\u8bd5\u8bb0\u5f55\uff0c\u53ef\u4ee5\u5148\u6765\u4e00\u6b21\u6a21\u62df\u3002'}</p>}
+      </section>}
+    </section>
+  );
+}
+
+function NativeMetric({ label, value, unit, tone = "" }: { label: string; value: string; unit: string; tone?: string }) {
+  return (
+    <div className={`native-metric ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}<small>{unit}</small></strong>
+    </div>
+  );
+}
+
+function NativeSectionHead({ icon, title, action, onAction }: { icon: React.ReactNode; title: string; action?: string; onAction?: () => void }) {
+  return (
+    <div className="native-section-head">
+      <strong>{icon}{title}</strong>
+      {action && <button type="button" onClick={onAction}>{action}<ChevronRight size={14} /></button>}
+    </div>
+  );
+}
+
+function MobilePracticeScreen(props: NativeMobileShellProps) {
+  const question = props.activeQuestion;
+  if (!question) {
+    return (
+      <section className="native-screen">
+        <EmptyCard title={"\u6682\u65e0\u5339\u914d\u9898\u76ee"} text={"\u70b9\u51fb\u53f3\u4e0a\u89d2\u7b5b\u9009\uff0c\u5207\u6362\u7ae0\u8282\u6216\u7ec3\u4e60\u6a21\u5f0f\u3002"} />
+      </section>
+    );
+  }
+  const percent = props.practiceQuestions.length ? Math.round(((props.practiceIndex + 1) / props.practiceQuestions.length) * 100) : 0;
+  const wrongCount = props.activeProgress?.wrongCount || 0;
+  const showAnswer = props.revealed || Boolean(props.activeProgress?.attempts);
+  const correct = props.selected ? props.selected === question.answer : Boolean(props.activeProgress?.lastCorrect);
+  return (
+    <section className="native-screen native-practice-screen">
+      <header className="native-practice-progress">
+        <div>
+          <strong>{props.practiceIndex + 1}<small>/{props.practiceQuestions.length}</small></strong>
+          <button data-testid="mobile-practice-filter-top" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); props.onOpenFilters(); }}><SlidersHorizontal size={16} />{'\u7b5b\u9009'}</button>
+        </div>
+        <i><b style={{ width: `${percent}%` }} /></i>
+      </header>
+      <article className="native-question-card">
+        <div className="native-question-tags">
+          <button type="button" className={props.activeProgress?.favorite ? "active" : ""} onClick={props.onFavorite}><Star size={14} />{'\u6536\u85cf'}</button>
+          <button type="button" className={props.activeProgress?.weak ? "active" : ""} onClick={props.onWeak}><Brain size={14} />{'\u4e0d\u719f'}</button>
+          <span>{question.chapter}</span>
+          <span>{question.type || '\u5355\u9009'}</span>
+          {wrongCount > 0 && <span className="danger">{'\u9519'} {wrongCount}</span>}
+        </div>
+        <h2>{question.stem}</h2>
+        <div className="native-options">
+          {question.options.map((option) => (
+            <AnswerOption
+              key={option.key}
+              option={option}
+              selected={props.selected === option.key}
+              correct={props.revealed && option.key === question.answer}
+              wrong={props.revealed && props.selected === option.key && option.key !== question.answer}
+              onClick={() => props.onAnswer(option.key)}
+            />
+          ))}
+        </div>
+        {showAnswer && (
+          <div className={`native-feedback-strip ${correct ? "correct" : "wrong"}`}>
+            <CheckCircle2 size={16} />
+            <span>{correct ? '\u7b54\u5bf9\u4e86' : props.selected ? '\u7b54\u9519\u4e86' : '\u5df2\u663e\u793a\u7b54\u6848'} · {'\u6b63\u786e\u7b54\u6848'} {question.answer}</span>
+          </div>
+        )}
+        {showAnswer && (
+          <details className="native-answer-fold">
+            <summary>{'\u67e5\u770b\u89e3\u6790'}</summary>
+            <FeedbackPanel question={question} selected={props.selected} revealed={props.revealed} progress={props.activeProgress} notice={props.answerNotice} onAi={props.onAi} aiLoading={props.aiLoading} />
+          </details>
+        )}
+        {(props.aiLoading || props.aiContent) && (
+          <details className="native-ai-fold" open>
+            <summary>{props.aiLoading ? '\u6b63\u5728\u751f\u6210 AI \u8bb2\u89e3' : 'AI \u8f85\u52a9\u89e3\u6790'}</summary>
+            {props.aiLoading ? <div className="ai-content">{'\u6b63\u5728\u62c6\u89e3\u8003\u70b9\uff0c\u7a0d\u7b49\u4e00\u4e0b\u3002'}</div> : <MarkdownContent text={props.aiContent} />}
+          </details>
+        )}
+      </article>
+      <div className="native-bottom-actions native-practice-actions">
+        <button type="button" onClick={props.onPrev} disabled={props.practiceIndex <= 0}><ChevronLeft size={18} />{'\u4e0a\u4e00\u9898'}</button>
+        <button data-testid="mobile-practice-filter-bottom" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); props.onOpenFilters(); }}><SlidersHorizontal size={18} />{'\u7b5b\u9009'}</button>
+        <button type="button" onClick={props.onReveal}><BookOpenCheck size={18} />{'\u89e3\u6790'}</button>
+        <button type="button" className="primary" onClick={props.onNext} disabled={props.practiceIndex >= props.practiceQuestions.length - 1}>{'\u4e0b\u4e00\u9898'}<ChevronRight size={18} /></button>
+      </div>
+    </section>
+  );
+}
+
+function MobileWrongBookScreen(props: NativeMobileShellProps) {
+  if (!props.wrongbookQuestions.length) {
+    return (
+      <section className="native-screen native-wrongbook-screen">
+        <div className="native-empty-state-card">
+          <ClipboardList size={28} />
+          <h1>{'\u6682\u65e0\u9519\u9898'}</h1>
+          <p>{'\u4f60\u5f53\u524d\u9519\u9898\u672c\u5f88\u5e72\u51c0\uff0c\u7ee7\u7eed\u7ec3\u4e60\u540e\uff0c\u7b54\u9519\u7684\u9898\u4f1a\u81ea\u52a8\u8fdb\u5165\u8fd9\u91cc\u3002'}</p>
+          <div>
+            <button className="native-primary-action" type="button" onClick={() => props.onNavigate("practice")}><BookOpen size={19} />{'\u53bb\u7ec3\u4e60'}</button>
+            <button className="native-secondary-action" type="button" onClick={() => props.onNavigate("exam")}><Timer size={19} />{'\u5f00\u59cb\u6a21\u62df\u8003\u8bd5'}</button>
+          </div>
+        </div>
+        <section className="native-card compact-copy">
+          <NativeSectionHead icon={<Brain size={18} />} title={"\u9519\u9898\u590d\u4e60\u6d41"} />
+          <p className="native-empty">{'\u540e\u7eed\u4f1a\u6309\u9519\u9898\u9891\u6b21\u548c\u6700\u8fd1\u7b54\u9898\u72b6\u6001\uff0c\u81ea\u52a8\u6392\u5217\u590d\u4e60\u987a\u5e8f\u3002'}</p>
+        </section>
+      </section>
+    );
+  }
+  return (
+    <section className="native-screen native-wrongbook-screen">
+      <div className="native-hero-card compact">
+        <span className="native-kicker">{'\u9519\u9898\u590d\u4e60\u6d41'}</span>
+        <h1>{props.wrongbookQuestions.length ? `\u4eca\u5929\u4f18\u5148\u590d\u4e60 ${props.wrongbookQuestions.length} \u9898` : '\u6682\u65e0\u9519\u9898'}</h1>
+        <p>{'\u6309\u9519\u9898\u9891\u6b21\u548c\u6700\u8fd1\u7b54\u9898\u72b6\u6001\u6392\u5e8f\u3002'}</p>
+      </div>
+      <div className="native-list-stack">
+        {props.wrongbookQuestions.map((question, index) => {
+          const item = props.progress.questions[question.id];
+          return (
+            <button className="native-review-card" type="button" key={question.id} onClick={() => props.onWrongbookPractice(question)}>
+              <b>{index + 1}</b>
+              <span>
+                <strong>{question.stem}</strong>
+                <em>{question.chapter} · {'\u9519'} {item?.wrongCount || 0} · {item?.lastCorrect ? '\u6700\u8fd1\u7b54\u5bf9' : '\u5f85\u5de9\u56fa'}</em>
+              </span>
+              <ChevronRight size={18} />
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MobileExamScreen(props: NativeMobileShellProps) {
+  const [answerSheetOpen, setAnswerSheetOpen] = useState(false);
+  const [configSheetOpen, setConfigSheetOpen] = useState(false);
+  const [mobileQuestionCount, setMobileQuestionCount] = useState(DEFAULT_EXAM_QUESTION_COUNT);
+  const [mobileDurationMinutes, setMobileDurationMinutes] = useState(DEFAULT_EXAM_DURATION_MINUTES);
+  const [mobileTargetAccuracy, setMobileTargetAccuracy] = useState(DEFAULT_EXAM_TARGET_ACCURACY);
+  const startMobileExam = () => {
+    props.onStartExam({
+      questionCount: Math.min(Math.max(mobileQuestionCount || DEFAULT_EXAM_QUESTION_COUNT, 5), props.bank.total),
+      durationMinutes: Math.min(Math.max(mobileDurationMinutes || DEFAULT_EXAM_DURATION_MINUTES, 1), 240),
+      targetAccuracy: Math.min(Math.max(mobileTargetAccuracy || DEFAULT_EXAM_TARGET_ACCURACY, 1), 100),
+      random: true,
+      chapterScope: [ALL_CHAPTER]
+    });
+    setConfigSheetOpen(false);
+  };
+  if (!props.exam) {
+    const latestRecords = [...props.progress.examRecords].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
+    return (
+      <section className="native-screen native-exam-screen">
+        <div className="native-hero-card exam">
+          <span className="native-kicker">{'\u6a21\u62df\u8003\u8bd5'}</span>
+          <h1>{'\u6309\u771f\u5b9e\u8282\u594f\u5b8c\u6210\u4e00\u6b21\u6d4b\u8bd5'}</h1>
+          <p>{'\u9ed8\u8ba4 100 \u9898 · 120 \u5206\u949f · \u76ee\u6807\u6b63\u786e\u7387 80%'}</p>
+          <button className="native-primary-action" type="button" onClick={() => props.onStartExam({
+            questionCount: DEFAULT_EXAM_QUESTION_COUNT,
+            durationMinutes: DEFAULT_EXAM_DURATION_MINUTES,
+            targetAccuracy: DEFAULT_EXAM_TARGET_ACCURACY,
+            random: true,
+            chapterScope: [ALL_CHAPTER]
+          })}><Timer size={20} />{'\u5f00\u59cb\u8003\u8bd5'}</button>
+        </div>
+        <section className="native-card">
+          <NativeSectionHead icon={<Target size={18} />} title={"\u8003\u8bd5\u76ee\u6807"} />
+          <div className="native-card-row">
+            <NativeMetric label={"\u9898\u91cf"} value="100" unit={"\u9898"} />
+            <NativeMetric label={"\u65f6\u95f4"} value="120" unit={"\u5206"} />
+            <NativeMetric label={"\u76ee\u6807"} value="80" unit="%" />
+          </div>
+        </section>
+        <section className="native-card native-exam-start-card">
+          <NativeSectionHead icon={<ClipboardList size={18} />} title={"\u6700\u8fd1\u8003\u8bd5"} />
+          {latestRecords.length ? latestRecords.map((record) => {
+            const score = record.total ? Math.round((record.correct / record.total) * 100) : 0;
+            return (
+              <div className="native-report-row" key={record.id}>
+                <strong>{score}{'\u5206'} · {record.correct}/{record.total}</strong>
+                <span>{formatDateTime(record.createdAt)}</span>
+              </div>
+            );
+          }) : <p className="native-empty">{'\u6682\u65e0\u8003\u8bd5\u8bb0\u5f55\uff0c\u53ef\u4ee5\u5148\u5b8c\u6210\u4e00\u6b21\u6a21\u62df\u3002'}</p>}
+        </section>
+        <section className="native-card native-exam-start-card">
+          <NativeSectionHead icon={<Info size={18} />} title={"\u8003\u8bd5\u89c4\u5219"} />
+          <div className="native-rule-list">
+            <span>{'\u9ed8\u8ba4 100 \u9898\uff0c120 \u5206\u949f\uff0c\u76ee\u6807\u6b63\u786e\u7387 80%\u3002'}</span>
+            <span>{'\u70b9\u51fb\u5f00\u59cb\u540e\u624d\u8ba1\u65f6\uff0c\u4ea4\u5377\u540e\u751f\u6210\u62a5\u544a\u3002'}</span>
+          </div>
+          <button className="native-secondary-action" type="button" onClick={() => setConfigSheetOpen(true)}><SlidersHorizontal size={18} />{'\u81ea\u5b9a\u4e49\u9898\u91cf / \u65f6\u95f4'}</button>
+        </section>
+        <BottomSheet open={configSheetOpen} title={"\u81ea\u5b9a\u4e49\u8003\u8bd5"} onClose={() => setConfigSheetOpen(false)}>
+          <div className="native-exam-config-sheet">
+            <label>
+              <span>{'\u9898\u76ee\u6570\u91cf'}</span>
+              <input type="number" min={5} max={props.bank.total} value={mobileQuestionCount} onChange={(event) => setMobileQuestionCount(Number(event.target.value || DEFAULT_EXAM_QUESTION_COUNT))} />
+            </label>
+            <label>
+              <span>{'\u8003\u8bd5\u65f6\u95f4\uff08\u5206\u949f\uff09'}</span>
+              <input type="number" min={1} max={240} value={mobileDurationMinutes} onChange={(event) => setMobileDurationMinutes(Number(event.target.value || DEFAULT_EXAM_DURATION_MINUTES))} />
+            </label>
+            <label>
+              <span>{'\u76ee\u6807\u6b63\u786e\u7387\uff08%\uff09'}</span>
+              <input type="number" min={1} max={100} value={mobileTargetAccuracy} onChange={(event) => setMobileTargetAccuracy(Number(event.target.value || DEFAULT_EXAM_TARGET_ACCURACY))} />
+            </label>
+            <button className="native-primary-action" type="button" onClick={startMobileExam}><Timer size={20} />{'\u5f00\u59cb\u81ea\u5b9a\u4e49\u8003\u8bd5'}</button>
+          </div>
+        </BottomSheet>
+      </section>
+    );
+  }
+  if (props.exam.result) {
+    const score = props.exam.result.accuracy;
+    const usedSeconds = props.exam.config.durationMinutes * 60 - props.exam.remainingSeconds;
+    return (
+      <section className="native-screen native-exam-report-screen">
+        <div className={`native-hero-card report ${score >= EXAM_PASS_SCORE ? "passed" : "failed"}`}>
+          <span className="native-kicker">{'\u8003\u8bd5\u62a5\u544a'}</span>
+          <h1>{score >= EXAM_PASS_SCORE ? '\u606d\u559c\u901a\u8fc7\uff01' : '\u672a\u901a\u8fc7\uff0c\u7ee7\u7eed\u52a0\u6cb9'}</h1>
+          <p>{'\u5f97\u5206'} <b>{score}</b> {'\u5206 · \u53ca\u683c'} {EXAM_PASS_SCORE} {'\u5206 · \u7528\u65f6'} {formatDuration(usedSeconds)}</p>
+          <button className="native-primary-action" type="button" onClick={props.onExamReset}><RotateCcw size={20} />{'\u91cd\u65b0\u8003\u8bd5'}</button>
+        </div>
+        <section className="native-card">
+          <NativeSectionHead icon={<ClipboardList size={18} />} title={"\u9519\u9898\u5217\u8868"} />
+          {props.exam.questions.filter((question) => props.exam?.result?.wrongQuestionIds.includes(question.id)).slice(0, 20).map((question) => (
+            <div className="native-report-row" key={question.id}>
+              <strong>{question.stem}</strong>
+              <span>{question.chapter} · {'\u6b63\u786e\u7b54\u6848'} {question.answer}</span>
+            </div>
+          ))}
+          {!props.exam.result.wrongQuestionIds.length && <p className="native-empty">{'\u672c\u6b21\u6ca1\u6709\u9519\u9898\u3002'}</p>}
+        </section>
+      </section>
+    );
+  }
+  const exam = props.exam;
+  const question = exam.questions[exam.index];
+  const selected = exam.answers[question.id] || "";
+  const answeredCount = Object.keys(exam.answers).filter((id) => exam.questions.some((item) => item.id === id)).length;
+  const isFirstExamQuestion = exam.index <= 0;
+  const isLastExamQuestion = exam.index >= exam.questions.length - 1;
+  return (
+    <section className="native-screen native-exam-screen running">
+      <header className="native-exam-status">
+        <span><Clock size={17} />{formatDuration(exam.remainingSeconds)}</span>
+        <span>{'\u5df2\u7b54'} {answeredCount}/{exam.questions.length}</span>
+        <button type="button" onClick={props.onExamSubmit}>{'\u4ea4\u5377'}</button>
+      </header>
+      <article className="native-question-card">
+        <div className="native-question-tags">
+          <span>{exam.index + 1}/{exam.questions.length}</span>
+          <span>{question.chapter}</span>
+          {exam.marked[question.id] && <span className="danger">{'\u5df2\u6807\u8bb0'}</span>}
+        </div>
+        <h2>{question.stem}</h2>
+        <div className="native-options">
+          {question.options.map((option) => (
+            <AnswerOption
+              key={option.key}
+              option={option}
+              selected={selected === option.key}
+              correct={false}
+              wrong={false}
+              onClick={() => props.onExamAnswer(question.id, option.key)}
+            />
+          ))}
+        </div>
+      </article>
+      <div className="native-bottom-actions native-exam-actions">
+        <button type="button" onClick={() => props.onExamJump(exam.index - 1)} disabled={isFirstExamQuestion}><ChevronLeft size={18} />{'\u4e0a\u4e00\u9898'}</button>
+        <button type="button" className={exam.marked[question.id] ? "active" : ""} onClick={() => props.onExamMark(question.id)}><Bookmark size={18} />{'\u6807\u8bb0'}</button>
+        <button type="button" onClick={() => setAnswerSheetOpen(true)}><Grid2X2 size={18} />{'\u7b54\u9898\u5361'}</button>
+        <button type="button" className="primary" onClick={() => props.onExamJump(exam.index + 1)} disabled={isLastExamQuestion}>{'\u4e0b\u4e00\u9898'}<ChevronRight size={18} /></button>
+      </div>
+      <BottomSheet open={answerSheetOpen} title={"\u7b54\u9898\u5361"} onClose={() => setAnswerSheetOpen(false)}>
+        <div className="exam-answer-sheet-body">
+          <ExamAnswerPanel
+            exam={exam}
+            collapsed={false}
+            onlyUnanswered={false}
+            onCollapsed={() => undefined}
+            onJump={(next) => {
+              props.onExamJump(next);
+              setAnswerSheetOpen(false);
+            }}
+          />
+        </div>
+      </BottomSheet>
+    </section>
+  );
+}
+
+function MobileMineScreen(props: NativeMobileShellProps) {
+  return (
+    <section className="native-screen native-mine-screen">
+      <div className="native-account-card">
+        <div className="native-account-avatar"><UserRound size={24} /></div>
+        <div>
+          <span>{'\u8d26\u53f7'}</span>
+          <strong>{props.user?.username || '\u672c\u673a\u5b66\u4e60'}</strong>
+          <em>{props.syncState}</em>
+        </div>
+      </div>
+      <section className="native-card">
+        <NativeSectionHead icon={<Gauge size={18} />} title={"\u5b66\u4e60\u6982\u51b5"} />
+        <div className="native-card-row">
+          <NativeMetric label={"\u5df2\u7ec3"} value={String(props.stats.answered)} unit={"\u9898"} />
+          <NativeMetric label={"\u6b63\u786e\u7387"} value={String(props.stats.accuracy)} unit="%" />
+          <NativeMetric label={"\u9519\u9898"} value={String(props.stats.wrong)} unit={"\u9898"} tone="warn" />
+        </div>
+      </section>
+      <section className="native-card native-settings-list">
+        <NativeMenuItem icon={<LayoutDashboard size={18} />} title={"\u5b66\u4e60\u9996\u9875"} onClick={() => props.onNavigate("dashboard")} />
+        <NativeMenuItem icon={<Timer size={18} />} title={"\u6a21\u62df\u8003\u8bd5"} onClick={() => props.onNavigate("exam")} />
+        <NativeMenuItem icon={<Globe2 size={18} />} title={"\u540c\u6b65\u8fdb\u5ea6"} onClick={() => props.onResumeSession()} />
+        <NativeMenuItem icon={<LogOut size={18} />} title={"\u9000\u51fa\u767b\u5f55"} onClick={() => props.onNavigate("login")} />
+      </section>
+    </section>
+  );
+}
+
+function NativeMenuItem({ icon, title, onClick }: { icon: React.ReactNode; title: string; onClick: () => void }) {
+  return (
+    <button className="native-menu-item" type="button" onClick={onClick}>
+      <span>{icon}</span>
+      <strong>{title}</strong>
+      <ChevronRight size={18} />
+    </button>
   );
 }
 
@@ -1550,7 +2365,7 @@ function PracticePage(props: {
   onFavorite: () => void;
   onWeak: () => void;
   onAi: () => void;
-  onExitFocus: () => void;
+  onOpenFilters: () => void;
 }) {
   if (!props.question) {
     if (props.search.trim()) {
@@ -1581,11 +2396,13 @@ function PracticePage(props: {
         <div className="hero-status">
           <span>当前进度</span>
           <strong>{props.index + 1}<small> / {props.questions.length}</small></strong>
-          <button className="ghost focus-exit" onClick={props.onExitFocus}>返回主页</button>
         </div>
       </header>
       {props.metrics && <PracticeMetricsBar metrics={props.metrics} current={props.index + 1} total={props.questions.length} />}
       <article className={`question-card ${answerState}`}>
+        <button className="mobile-practice-filter-chip" type="button" onClick={props.onOpenFilters}>
+          <Shuffle size={16} />筛选 / 模式
+        </button>
         <div className="question-topline">
           <span>{props.index + 1} / {props.questions.length}</span>
           <span>{props.question.chapter}</span>
@@ -2087,6 +2904,7 @@ function ExamPage(props: {
   const [chapterScope, setChapterScope] = useState<string[]>([ALL_CHAPTER]);
   const [onlyUnanswered, setOnlyUnanswered] = useState(false);
   const [answerPanelCollapsed, setAnswerPanelCollapsed] = useState(false);
+  const [answerSheetOpen, setAnswerSheetOpen] = useState(false);
   const phase: ExamPhase = !props.exam ? "setup" : props.exam.result ? "finished" : "running";
 
   function toggleChapter(name: string) {
@@ -2442,6 +3260,7 @@ function ExamPage(props: {
           <footer className="exam-action-row">
             <button className="ghost" onClick={() => jumpRelative(-1)} disabled={exam.index <= 0}><ChevronLeft size={17} />上一题</button>
             <button className="ghost" onClick={() => props.onMark(question.id)}><Bookmark size={17} />暂存本题</button>
+            <button className="ghost mobile-exam-card-action" onClick={() => setAnswerSheetOpen(true)}><Grid2X2 size={17} />{"\u7b54\u9898\u5361"}</button>
             <button className="next-action" onClick={() => jumpRelative(1)} disabled={exam.index >= exam.questions.length - 1}>下一题<ChevronRight size={17} /></button>
             <button className="danger-action" onClick={props.onSubmit}>交卷</button>
           </footer>
@@ -2455,6 +3274,19 @@ function ExamPage(props: {
         onCollapsed={setAnswerPanelCollapsed}
         onJump={jumpQuestion}
       />
+
+      <BottomSheet open={answerSheetOpen} title={"\u7b54\u9898\u5361"} onClose={() => setAnswerSheetOpen(false)}>
+        <ExamAnswerPanel
+          exam={exam}
+          collapsed={false}
+          onlyUnanswered={onlyUnanswered}
+          onCollapsed={() => undefined}
+          onJump={(next) => {
+            jumpQuestion(next);
+            setAnswerSheetOpen(false);
+          }}
+        />
+      </BottomSheet>
     </section>
   );
 }

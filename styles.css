@@ -3742,3 +3742,327 @@ body.admin-v2 .admin-footer-v2 {
     display: none;
   }
 }
+
+/* Mobile hardening for the legacy admin console. Keep desktop unchanged while
+   making all management pages usable on tablets and phones. */
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+pre,
+code,
+table,
+.admin-message,
+.admin-empty,
+.admin-user-main,
+.admin-panel-v2,
+.admin-log-list,
+.admin-notice-list,
+.admin-material-list,
+.admin-notice-editor,
+.admin-chapter-table,
+.admin-table-wrap {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1024px) {
+  html,
+  body.admin-v2 {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  body.admin-v2 button,
+  body.admin-v2 input,
+  body.admin-v2 select {
+    min-height: 44px;
+  }
+
+  body.admin-v2 .admin-app {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  body.admin-v2 .admin-sidebar-v2 {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid #e6eee8;
+  }
+
+  body.admin-v2 .admin-sidebar-brand {
+    min-height: 48px;
+  }
+
+  body.admin-v2 .admin-sidebar-brand img {
+    width: 42px;
+    height: 42px;
+  }
+
+  body.admin-v2 .admin-nav-v2 {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px 0 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.admin-v2 .admin-nav-v2::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.admin-v2 .admin-nav-v2 p,
+  body.admin-v2 .admin-collapse-btn {
+    display: none;
+  }
+
+  body.admin-v2 .admin-nav-v2 button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: max-content;
+    min-height: 40px;
+    padding: 0 12px;
+  }
+
+  body.admin-v2 .admin-shell-v2 {
+    grid-column: 1;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  body.admin-v2 .admin-topbar-v2 {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    height: auto;
+    min-height: 64px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  body.admin-v2 .admin-search-v2 {
+    grid-column: 1 / -1;
+    order: 3;
+    width: 100%;
+  }
+
+  body.admin-v2 .admin-content-v2 {
+    width: 100%;
+    padding: 18px 16px 24px;
+  }
+
+  body.admin-v2 .admin-dashboard-grid,
+  body.admin-v2 .admin-dashboard-grid.compact,
+  body.admin-v2 .admin-side-stack,
+  body.admin-v2 .admin-form-panel,
+  body.admin-v2 .admin-donut-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  body.admin-v2 .admin-metric-grid-v2,
+  body.admin-v2 .admin-score-grid,
+  body.admin-v2 .admin-stats-v2,
+  body.admin-v2 .admin-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.admin-v2 .admin-table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.admin-v2 table {
+    min-width: 680px;
+  }
+
+  body.admin-v2 .admin-user-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  body.admin-v2 .admin-user-actions {
+    justify-content: stretch;
+  }
+
+  body.admin-v2 .admin-user-actions button {
+    flex: 1 1 132px;
+  }
+}
+
+@media (max-width: 768px) {
+  body.admin-v2 .admin-login-panel {
+    min-height: 100dvh;
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  body.admin-v2 .admin-login-stage {
+    width: 100%;
+    border-radius: 20px;
+  }
+
+  body.admin-v2 .admin-login-card,
+  body.admin-v2 .admin-login-aside {
+    padding: 22px;
+  }
+
+  body.admin-v2 .admin-login-aside h2,
+  body.admin-v2 .admin-login-card h1 {
+    font-size: clamp(24px, 8vw, 30px);
+  }
+
+  body.admin-v2 .admin-login-feature-grid,
+  body.admin-v2 .admin-metric-grid-v2,
+  body.admin-v2 .admin-score-grid,
+  body.admin-v2 .admin-stats-v2,
+  body.admin-v2 .admin-tag-grid,
+  body.admin-v2 .admin-chapters,
+  body.admin-v2 .admin-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.admin-v2 .admin-page-head,
+  body.admin-v2 .admin-head-actions,
+  body.admin-v2 .admin-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  body.admin-v2 .admin-head-actions button,
+  body.admin-v2 .admin-page-head > button,
+  body.admin-v2 .admin-actions button,
+  body.admin-v2 .admin-form-panel button {
+    width: 100%;
+  }
+
+  body.admin-v2 .admin-panel-v2 {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  body.admin-v2 .admin-page-head h1 {
+    font-size: 22px;
+  }
+
+  body.admin-v2 .admin-line-chart {
+    min-height: 220px;
+  }
+
+  body.admin-v2 .admin-donut-wrap {
+    justify-items: center;
+  }
+
+  body.admin-v2 .admin-donut-legend {
+    width: 100%;
+  }
+
+  body.admin-v2 .admin-chapter-table > div {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  body.admin-v2 .admin-chapter-table strong,
+  body.admin-v2 .admin-chapter-table span,
+  body.admin-v2 .admin-chapter-table i,
+  body.admin-v2 .admin-chapter-table button {
+    grid-column: 2;
+  }
+
+  body.admin-v2 .admin-notice-list div {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  body.admin-v2 .admin-notice-list time {
+    grid-column: 2;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  body.admin-v2 .admin-sidebar-v2,
+  body.admin-v2 .admin-topbar-v2,
+  body.admin-v2 .admin-content-v2 {
+    padding-inline: 12px;
+  }
+
+  body.admin-v2 .admin-topbar-v2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.admin-v2 .admin-profile-v2,
+  body.admin-v2 .admin-icon-button {
+    display: none;
+  }
+
+  body.admin-v2 .admin-sidebar-brand strong {
+    font-size: 18px;
+  }
+
+  body.admin-v2 .admin-sidebar-brand span,
+  body.admin-v2 .admin-top-title span {
+    font-size: 11px;
+  }
+
+  body.admin-v2 .admin-nav-v2 button {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  body.admin-v2 .admin-login-card,
+  body.admin-v2 .admin-login-aside,
+  body.admin-v2 .admin-panel-v2 {
+    padding: 14px;
+  }
+
+  body.admin-v2 .admin-login-aside {
+    display: none;
+  }
+
+  body.admin-v2 .admin-metric-card {
+    min-height: 100px;
+    padding: 14px;
+  }
+
+  body.admin-v2 .admin-user-stats {
+    grid-template-columns: 1fr;
+  }
+
+  body.admin-v2 .admin-user-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  body.admin-v2 table {
+    min-width: 620px;
+    font-size: 12px;
+  }
+
+  body.admin-v2 th,
+  body.admin-v2 td {
+    padding: 10px 8px;
+  }
+
+  body.admin-v2 .admin-footer-v2 {
+    padding: 18px 12px 22px;
+  }
+}
